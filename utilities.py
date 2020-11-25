@@ -121,7 +121,9 @@ def create_name(name, label):
 
     draw = ImageDraw.Draw(img)
     draw.text((75,75), name, font=font, fill='black')
-    return np.array(img)
+    img = np.array(img)
+    cv2.imwrite('figures/transformations/{}.jpg'.format(label), img)
+    return img
 
 # add border in the image by replicating the edges
 def add_border(img):
@@ -304,7 +306,7 @@ def create_hist(img, label):
         hist = ax.bar(intensity, count)
         ax.set_title('Intensity')
         ax.set_ylabel('Count')
-        return (count)
+        return count
 
 def hist_intersection(h1, h2):
     """
@@ -313,7 +315,7 @@ def hist_intersection(h1, h2):
     """
 
     # grayscale
-    if h1.ndim == 1:
+    if type(h1) is not tuple:
         intersection = np.sum(np.minimum(h1, h2))
         print('Histogram Intersection: ', intersection)
         return intersection
@@ -327,3 +329,33 @@ def hist_intersection(h1, h2):
         print('Green Intersection: ', g_intersection)
         print('Blue Intersection: ', b_intersection)
         return (r_intersection, g_intersection, b_intersection)
+
+def get_frames(path, rbg):
+    vid = cv2.VideoCapture(path)
+
+    if (vid.isOpened()== False): 
+        print("Error opening video stream or file")
+
+    frames = []
+
+    while(vid.isOpened()):
+        ret, frame = vid.read()
+
+        if ret==True:
+            if rbg==0:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                frame = frame[:, :, np.newaxis]
+            frames.append(frame)
+        else:
+            break   
+    vid.release()
+    cv2.destroyAllWindows()
+    return frames
+
+def play_video(frames):
+    for frame in frames:
+        cv2.imshow('Frame', frame)
+        if cv2.waitKey(25) & 0xFF == ord('q'):
+            break
+    cv2.destroyAllWindows()
+    pass
