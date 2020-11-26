@@ -4,11 +4,13 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
 
 
-# QUESTION 1 FUNCTIONS
+""" QUESTION 1 FUNCTIONS """
 
-# display an image
-# function inspired from the documentation of opencv:
-# https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_gui/py_image_display/py_image_display.html
+"""
+display an image
+function inspired from the documentation of opencv:
+https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_gui/py_image_display/py_image_display.html
+"""
 def ICV_show_img(img, label):
     w, h = int(img.shape[0]/2), int(img.shape[1]/2)
     cv2.namedWindow(label, cv2.WINDOW_NORMAL)
@@ -149,10 +151,7 @@ def ICV_create_name(name, label):
 
 
 
-
-# QUESTION 2 FUNCTIONS
-
-
+"""  QUESTION 2 FUNCTIONS """
 # add border in the image by replicating the edges
 def ICV_add_border(img):
     x, y = img.shape[0], img.shape[1]
@@ -454,6 +453,11 @@ def ICV_get_intersections(frames, color):
         intersections.append(intersection)
     return intersections
 
+
+"""
+function inspired by opencv documentation
+https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_gui/py_video_display/py_video_display.html
+"""
 def ICV_play_video(frames):
     for frame in frames:
         cv2.imshow('Frame', frame)
