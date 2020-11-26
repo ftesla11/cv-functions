@@ -3,8 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
 
+
+# QUESTION 1 FUNCTIONS
+
 # display an image
-def show_img(img, label):
+def ICV_show_img(img, label):
     w, h = int(img.shape[0]/2), int(img.shape[1]/2)
     cv2.namedWindow(label, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(label, (h, w))
@@ -13,7 +16,7 @@ def show_img(img, label):
     cv2.destroyAllWindows()    
 
 # perform rotation on an image
-def rotate(img, angle_degrees):
+def ICV_rotate(img, angle_degrees):
     """
         :params img             :   image array
         :params angle_degrees   :   angle in degrees for rotation 
@@ -46,11 +49,11 @@ def rotate(img, angle_degrees):
             y = new_centre[1] - j
 
             # perform backward mapping to obtain pixels
-            new_img[i, j] = nn_interpolate(img, x, y, rot_matrix)
+            new_img[i, j] = ICV_nn_interpolate(img, x, y, rot_matrix)
     return new_img
 
 # nearest neighbor interpolation
-def nn_interpolate(img, x, y, matrix):
+def ICV_nn_interpolate(img, x, y, matrix):
     """
         :params img     :   image array
         :params x       :   x-coordinate of the pixel
@@ -84,7 +87,7 @@ def nn_interpolate(img, x, y, matrix):
 
 
 # perform skewing on an image
-def skew(img, angle_degrees):
+def ICV_skew(img, angle_degrees):
     """
         :params img             :   image array
         :params angle_degrees   :   angle in degrees for skewing
@@ -115,7 +118,7 @@ def skew(img, angle_degrees):
     return new_img
 
 
-def create_name(name, label):
+def ICV_create_name(name, label):
     img = Image.new(mode='RGB', size=(256,256), color='yellow')
     font = ImageFont.truetype('arial.ttf', 72)
 
@@ -125,8 +128,14 @@ def create_name(name, label):
     cv2.imwrite('figures/transformations/{}.jpg'.format(label), img)
     return img
 
+
+
+
+# QUESTION 2 FUNCTIONS
+
+
 # add border in the image by replicating the edges
-def add_border(img):
+def ICV_add_border(img):
     x, y = img.shape[0], img.shape[1]
 
     # Mirror the first row
@@ -149,7 +158,7 @@ def add_border(img):
     return new_img
 
 # remove border
-def remove_border(img):
+def ICV_remove_border(img):
 
     # Remove the first and bottom rows
     new_img = np.delete(img, 0, axis=0)
@@ -161,7 +170,7 @@ def remove_border(img):
     return new_img
 
 
-def apply_kernel(img, kernel):
+def ICV_apply_kernel(img, kernel):
     """
         :params img     :   image array
         :params kernel  :   3x3 numpy array of a kernel to be applied
@@ -210,21 +219,20 @@ def apply_kernel(img, kernel):
                 w = (kernel[1,0] * img[i, j-1]).astype(int)
 
                 # Find the mean of the sum
-                r = center[0] + nw[0] + n[0] + ne[0] + e[0] + se[0] + s[0] + sw[0] + w[0]
+                b = center[0] + nw[0] + n[0] + ne[0] + e[0] + se[0] + s[0] + sw[0] + w[0]
                 g = center[1] + nw[1] + n[1] + ne[1] + e[1] + se[1] + s[1] + sw[1] + w[1]
-                b = center[2] + nw[2] + n[2] + ne[2] + e[2] + se[2] + s[2] + sw[2] + w[2]
+                r = center[2] + nw[2] + n[2] + ne[2] + e[2] + se[2] + s[2] + sw[2] + w[2]
 
                 # threshold for color intensities
                 r = r if r > 0 and r < 255 else 255 if r > 255 else 0
                 g = g if g > 0 and g < 255 else 255 if g > 255 else 0
                 b = b if b > 0 and b < 255 else 255 if b > 255 else 0
-                new_img[i, j] = np.array([r, g, b], dtype=np.uint8)
+                new_img[i, j] = np.array([b, g, r], dtype=np.uint8)
     new_img = remove_border(new_img)
     return new_img
 
-
-def to_grayscale(img):
-
+# convert to grayscale
+def ICV_to_grayscale(img):
     x, y = img.shape[0], img.shape[1]
 
     new_img = np.empty((x, y, 1), dtype=np.uint8)
@@ -244,97 +252,22 @@ def to_grayscale(img):
 
     return new_img
 
-# fill the count array
-def fill_intensities(intensity, count):
-    intensity_filled = np.zeros((256), dtype=np.uint8)
-    count_filled = np.zeros((256), dtype=np.uint8)
 
-    intensity_filled[intensity] = intensity
-    count_filled[intensity] = count
 
-    return intensity_filled, count_filled
 
-# create a histogram
-def create_hist(img, label):
+# QUESTION 3 FUNCTIONS
+
+
+# get frames of a video sequence
+def ICV_get_frames(path, rbg):
     """
-        :params img     :   image array
-        :params label   :   name of the figure to be saved on disk
+        :params path    :   path to the video to open
+        :params rgb     :   boolean, 1 to load rgb video
     """
-
-    # RGB images
-    if img.shape[2] == 3:
-
-        # Get each intensity and their corresponding count
-        r, r_count = np.unique(img[:, :, 0], return_counts=True)
-        g, g_count = np.unique(img[:, :, 1], return_counts=True)
-        b, b_count = np.unique(img[:, :, 2], return_counts=True)
-
-        # fill the count with 0 if intensity not found
-        r, r_count = fill_intensities(r, r_count)
-        g, g_count = fill_intensities(g, g_count)
-        b, b_count = fill_intensities(b, b_count)
-
-        fig, ax = plt.subplots(3,1, figsize=(5,5))
-        fig.tight_layout()
-
-        rhist = ax[0].bar(r, r_count)
-        ax[0].set_title('Red Histogram')
-        ax[0].set_ylabel('Count')
-
-        ghist = ax[1].bar(g, g_count)
-        ax[1].set_title('Green Histogram')
-        ax[1].set_ylabel('Count')
-
-        bhist = ax[2].bar(b, b_count)
-        ax[2].set_title('Blue Histogram')
-        ax[2].set_ylabel('Count')
-        fig.show()
-        fig.savefig(label)
-        return ((r_count), (g_count), (b_count))
-
-    # grayscale images
-    else:
-        intensity, count = np.unique(img[:, :], return_counts=True)
-
-        intensity, count = fill_intensities(intensity, count)
-
-        count = count/img.size
-
-        fig, ax = plt.subplots(1,1)
-        fig.tight_layout()
-
-        hist = ax.bar(intensity, count)
-        ax.set_title('Intensity')
-        ax.set_ylabel('Count')
-        return count
-
-def hist_intersection(h1, h2):
-    """
-        :param h1, h2                : intensity count of each histogram
-        :param h1[0], h1[1], h[2]    : red, green, blue
-    """
-
-    # grayscale
-    if type(h1) is not tuple:
-        intersection = np.sum(np.minimum(h1, h2))
-        print('Histogram Intersection: ', intersection)
-        return intersection
-    # RGB
-    else:
-        r_intersection = np.sum(np.minimum(h1[0], h2[0]))
-        g_intersection = np.sum(np.minimum(h1[1], h2[1]))
-        b_intersection = np.sum(np.minimum(h1[2], h2[2]))
-
-        print('Red Intersection: ', r_intersection)
-        print('Green Intersection: ', g_intersection)
-        print('Blue Intersection: ', b_intersection)
-        return (r_intersection, g_intersection, b_intersection)
-
-def get_frames(path, rbg):
     vid = cv2.VideoCapture(path)
 
     if (vid.isOpened()== False): 
-        print("Error opening video stream or file")
+        print("Error: Unable to open video")
 
     frames = []
 
@@ -352,7 +285,150 @@ def get_frames(path, rbg):
     cv2.destroyAllWindows()
     return frames
 
-def play_video(frames):
+# fill the list of count of intensities with zeroes for each intensity value that's not present
+def ICV_fill_intensities(intensity, count):
+    """
+        :params intensity   :   unique intensity value
+        :params count       :   count of each unique intensity value
+    """
+    intensity_filled = np.zeros((256), dtype=np.uint64)
+    count_filled = np.zeros((256), dtype=np.uint64)
+
+    intensity_filled[intensity] = intensity
+    count_filled[intensity] = count
+
+    return intensity_filled, count_filled
+
+
+# create a histogram
+def ICV_create_hist(img):
+    """
+        :params img     :   image array
+        :params label   :   name of the figure to be saved on disk
+    """
+
+    # RGB images
+    if img.ndim == 3:
+
+        # Get each intensity and their corresponding count
+        b, b_count = np.unique(img[:, :, 0], return_counts=True)
+        g, g_count = np.unique(img[:, :, 1], return_counts=True)
+        r, r_count = np.unique(img[:, :, 2], return_counts=True)
+
+        # fill the count with 0 if intensity not found
+        b, b_count = ICV_fill_intensities(b, b_count)
+        g, g_count = ICV_fill_intensities(g, g_count)
+        r, r_count = ICV_fill_intensities(r, r_count)
+        return ((b_count), (g_count), (r_count))
+
+    # grayscale images
+    else:
+        intensity, count = np.unique(img[:, :], return_counts=True)
+
+        intensity, count = ICV_fill_intensities(intensity, count)
+
+       # count = count/img.size
+        return count
+
+
+def ICV_plot_histogram(h, label):
+    """
+        :params h       :   tuple containing the histogram of blue, green, red
+        :params label   :   path to save the histogram
+    """
+    x = np.arange(0, 256) 
+
+    fig, ax = plt.subplots(3,1, figsize=(5,5))
+    fig.tight_layout()
+
+    bhist = ax[0].bar(x, h[0], color='b')
+    ax[0].set_title('Blue Histogram')
+    ax[0].set_ylabel('Count')
+
+    ghist = ax[1].bar(x, h[1], color='g')
+    ax[1].set_title('Green Histogram')
+    ax[1].set_ylabel('Count')
+
+    rhist = ax[2].bar(x, h[2], color='r')
+    ax[2].set_title('Red Histogram')
+    ax[2].set_ylabel('Count')
+    fig.show()
+    fig.savefig(label)
+
+
+# compute histogram intersection of two frames
+def ICV_hist_intersection(h1, h2):
+    """
+        :params h1, h2                : intensity count of each histogram
+        :params h1[0], h1[1], h[2]    : red, green, blue
+    """
+
+    # grayscale
+    if type(h1) is not tuple:
+        intersection = np.sum(np.minimum(h1, h2))
+        return intersection
+    # RGB
+    else:
+        b_intersection = np.sum(np.minimum(h1[0], h2[0]))
+        g_intersection = np.sum(np.minimum(h1[1], h2[1]))
+        r_intersection = np.sum(np.minimum(h1[2], h2[2]))
+        return (b_intersection, g_intersection, r_intersection)
+
+
+# normalize intersections
+def ICV_normalize_intersections(intersections, pixels):
+    """
+        :params intersections   :   list of intersection values
+        :params pixels          :   total number of pixels to normalize by
+    """ 
+    normalized = np.array(intersections, dtype=np.uint64)/pixels
+    return normalized
+
+
+# plot the intersection values
+def ICV_plot_intersections(frames, intersections, plot, label):
+    """
+        :params frames          :   list of frames from a video sequence
+        :params intersections   :   tuple containing intersection of each color
+        :params plot            :   'bar' or 'line' for plot type
+        :params label           :   string containing the path to be saved
+    """
+    fig, ax = plt.subplots(3,1)
+    x = np.arange(1,len(frames))
+
+    if plot == 'bar':
+        ax[0].bar(x, intersections[0], color='b')
+        ax[1].bar(x, intersections[1], color='g')
+        ax[2].bar(x, intersections[2], color='r')
+    else:
+        ax[0].plot(x, intersections[0], color='b')
+        ax[1].plot(x, intersections[1], color='g')
+        ax[2].plot(x, intersections[2], color='r')
+    fig.savefig(label)
+
+
+# compute intersections of a video sequence
+def ICV_get_intersections(frames, color):
+    """
+        :params frames      :   list of frames from a video sequence
+        :params color       :   0, 1, 2, each representing blue, green, red respectively
+    """
+    intersections = []
+
+    for i, frame in enumerate(frames):
+        if i==len(frames)-1:
+            break
+
+        # get the histogram of two consecutive frames
+        count_1 = ICV_create_hist(frames[i][:, :, color])
+        count_2 = ICV_create_hist(frames[i+1][:, :, color])
+
+        # compute intersection of the two histograms
+        intersection = ICV_hist_intersection(count_1, count_2)
+        intersections.append(intersection)
+    return intersections
+
+def ICV_play_video(frames):
     for frame in frames:
         cv2.imshow('Frame', frame)
         if cv2.waitKey(25) & 0xFF == ord('q'):
