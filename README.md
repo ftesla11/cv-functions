@@ -2,11 +2,9 @@
 
 All the implemented functions are found in utilities.py
 
-To run the code for displaying the appropriate outputs corresponding to the assignmnent questions, use the jupyter notebook main.ipynb.
+To run the code for displaying the appropriate outputs corresponding to the assignmnent questions, use the jupyter notebook main.ipynb. Run the cells in order.
 
-The first cell imports the functions from utilities.py. From then on, any ICV_function() can simply be called in the notebook.
-
-Make sure to run the cells in order
+The first cell imports the functions from utilities.py. From then on, any ICV_function() can simply be called in the notebook
 
 
 # Dataset

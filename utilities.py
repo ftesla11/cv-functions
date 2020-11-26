@@ -7,6 +7,8 @@ from PIL import Image, ImageDraw, ImageFont
 # QUESTION 1 FUNCTIONS
 
 # display an image
+# function inspired from the documentation of opencv:
+# https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_gui/py_image_display/py_image_display.html
 def ICV_show_img(img, label):
     w, h = int(img.shape[0]/2), int(img.shape[1]/2)
     cv2.namedWindow(label, cv2.WINDOW_NORMAL)
@@ -21,20 +23,23 @@ def ICV_rotate(img, angle_degrees):
         :params img             :   image array
         :params angle_degrees   :   angle in degrees for rotation 
     """
-
     # convert to radians
     theta = np.radians(angle_degrees)
 
+    # original dimensions
     old_x, old_y = img.shape[0], img.shape[1]
 
     # dimensions of new image after rotation
     new_x = round(abs(old_y*np.sin(theta)) + abs(old_x*np.cos(theta)))
     new_y = round(abs(old_y*np.cos(theta)) + abs(old_x*np.sin(theta)))
+
+    # coordinates of the centre
     new_centre = (round(new_x/2), round(new_y/2))
 
+    # initialise a new image array with the newly calculated dimensions
     new_img = np.empty((int(new_x), int(new_y), img.shape[2]), dtype=np.uint8)
     
-    # romation matrix
+    # rotation matrix
     rot_matrix = np.array([
         [np.cos(theta), -np.sin(theta), 0],
         [np.sin(theta), np.cos(theta), 0],
@@ -56,14 +61,15 @@ def ICV_rotate(img, angle_degrees):
 def ICV_nn_interpolate(img, x, y, matrix):
     """
         :params img     :   image array
-        :params x       :   x-coordinate of the pixel
-        :params y       :   y-coordinate of the pixel
+        :params x       :   scalar x-coordinate of the pixel
+        :params y       :   scalar y-coordinate of the pixel
         :params matrix  :   rotation matrix
     """
 
     # apply rotation matrix
     x, y, _ = matrix @ np.array([x, y, 1])
 
+    # coordinates of the centre
     centre = (np.round(img.shape[0]/2), np.round(img.shape[1]/2))
 
     # translate to the original coordinates
@@ -74,6 +80,7 @@ def ICV_nn_interpolate(img, x, y, matrix):
     y =  np.round(y)
 
     # interpolate only within image boundaries
+    # return black if mapped outside of original image boundaries
     if x >= img.shape[0]:
         return np.array([0, 0, 0], dtype=np.uint8)
     if x <= 0:
@@ -96,12 +103,14 @@ def ICV_skew(img, angle_degrees):
     # convert to radians
     theta = np.radians(angle_degrees)
 
+    # dimensions of original image
     x, y = img.shape[0], img.shape[1]
 
     # new dimension size after skewing
     extra_y = np.ceil(x*np.tan(theta))
     skewed_y =  y + extra_y
 
+    # initialise array with newly computed dimensions
     new_img = np.zeros((int(x), int(skewed_y), img.shape[2]), dtype=np.uint8)
 
     # skewing matrix
@@ -111,14 +120,24 @@ def ICV_skew(img, angle_degrees):
         [0, 0, 1]
     ])
 
+
     for i in range(x):
         for j in range(y):
             new_x, new_y, _ = skew_matrix @ np.array([i, j, 1])
+
+            # translate horizontal axis by the difference of original dimension and new dimension
             new_img[int(new_x), int(new_y)+int(extra_y)] = img[i, j]
     return new_img
 
 
+# Function to create an image with text
+# Function inspired from:
+# https://pythonprogramming.altervista.org/make-an-image-with-text-with-python/
 def ICV_create_name(name, label):
+    """
+        :params name    :   string to place n the image
+        :params label   :   path to save the image file
+    """
     img = Image.new(mode='RGB', size=(256,256), color='yellow')
     font = ImageFont.truetype('arial.ttf', 72)
 
@@ -170,14 +189,16 @@ def ICV_remove_border(img):
     return new_img
 
 
+# apply convolution
 def ICV_apply_kernel(img, kernel):
     """
         :params img     :   image array
         :params kernel  :   3x3 numpy array of a kernel to be applied
     """
     # add border for smoothing edge pixels
-    img = add_border(img)
+    img = ICV_add_border(img)
 
+    # dimensions of original image
     x, y = img.shape[0], img.shape[1]
 
     # apply on grayscale
@@ -228,7 +249,9 @@ def ICV_apply_kernel(img, kernel):
                 g = g if g > 0 and g < 255 else 255 if g > 255 else 0
                 b = b if b > 0 and b < 255 else 255 if b > 255 else 0
                 new_img[i, j] = np.array([b, g, r], dtype=np.uint8)
-    new_img = remove_border(new_img)
+
+    # remove the dummy border
+    new_img = ICV_remove_border(new_img)
     return new_img
 
 # convert to grayscale
@@ -269,6 +292,7 @@ def ICV_get_frames(path, rbg):
     if (vid.isOpened()== False): 
         print("Error: Unable to open video")
 
+    # store all the frames of a video sequence
     frames = []
 
     while(vid.isOpened()):
@@ -278,6 +302,7 @@ def ICV_get_frames(path, rbg):
             if rbg==0:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 frame = frame[:, :, np.newaxis]
+            # append all the retrieved frames
             frames.append(frame)
         else:
             break   
@@ -285,10 +310,10 @@ def ICV_get_frames(path, rbg):
     cv2.destroyAllWindows()
     return frames
 
-# fill the list of count of intensities with zeroes for each intensity value that's not present
+# fill the count with 0 at indices between 0-255 of intensities that were not found
 def ICV_fill_intensities(intensity, count):
     """
-        :params intensity   :   unique intensity value
+        :params intensity   :   unique intensity values
         :params count       :   count of each unique intensity value
     """
     intensity_filled = np.zeros((256), dtype=np.uint64)
@@ -315,7 +340,7 @@ def ICV_create_hist(img):
         g, g_count = np.unique(img[:, :, 1], return_counts=True)
         r, r_count = np.unique(img[:, :, 2], return_counts=True)
 
-        # fill the count with 0 if intensity not found
+        # fill the count with 0 at indices between 0-255 of intensities that were not found
         b, b_count = ICV_fill_intensities(b, b_count)
         g, g_count = ICV_fill_intensities(g, g_count)
         r, r_count = ICV_fill_intensities(r, r_count)
@@ -326,16 +351,17 @@ def ICV_create_hist(img):
         intensity, count = np.unique(img[:, :], return_counts=True)
 
         intensity, count = ICV_fill_intensities(intensity, count)
-
-       # count = count/img.size
         return count
 
 
+# plot color histogram
 def ICV_plot_histogram(h, label):
     """
         :params h       :   tuple containing the histogram of blue, green, red
         :params label   :   path to save the histogram
     """
+
+    # x axis for each intensity value
     x = np.arange(0, 256) 
 
     fig, ax = plt.subplots(3,1, figsize=(5,5))
