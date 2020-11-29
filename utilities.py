@@ -279,7 +279,6 @@ def ICV_to_grayscale(img):
 
 # QUESTION 3 FUNCTIONS
 
-
 # get frames of a video sequence
 def ICV_get_frames(path, rbg):
     """
@@ -324,6 +323,7 @@ def ICV_fill_intensities(intensity, count):
     return intensity_filled, count_filled
 
 
+
 # create a histogram
 def ICV_create_hist(img):
     """
@@ -333,7 +333,6 @@ def ICV_create_hist(img):
 
     # RGB images
     if img.ndim == 3:
-
         # Get each intensity and their corresponding count
         b, b_count = np.unique(img[:, :, 0], return_counts=True)
         g, g_count = np.unique(img[:, :, 1], return_counts=True)
@@ -348,7 +347,6 @@ def ICV_create_hist(img):
     # grayscale images
     else:
         intensity, count = np.unique(img[:, :], return_counts=True)
-
         intensity, count = ICV_fill_intensities(intensity, count)
         return count
 
@@ -359,9 +357,8 @@ def ICV_plot_histogram(h, label):
         :params h       :   tuple containing the histogram of blue, green, red
         :params label   :   path to save the histogram
     """
-
     # x axis for each intensity value
-    x = np.arange(0, 256) 
+    x = np.arange(0, 256)
 
     fig, ax = plt.subplots(3,1, figsize=(5,5))
     fig.tight_layout()
@@ -369,16 +366,20 @@ def ICV_plot_histogram(h, label):
     bhist = ax[0].bar(x, h[0], color='b')
     ax[0].set_title('Blue Histogram')
     ax[0].set_ylabel('Count')
+    ax[0].set_xlabel('Intensity')
 
     ghist = ax[1].bar(x, h[1], color='g')
     ax[1].set_title('Green Histogram')
     ax[1].set_ylabel('Count')
+    ax[1].set_xlabel('Intensity')
 
     rhist = ax[2].bar(x, h[2], color='r')
     ax[2].set_title('Red Histogram')
     ax[2].set_ylabel('Count')
+    ax[2].set_xlabel('Intensity')
     fig.show()
     fig.savefig(label)
+
 
 
 # compute histogram intersection of two frames
@@ -447,7 +448,6 @@ def ICV_get_intersections(frames, color):
         # get the histogram of two consecutive frames
         count_1 = ICV_create_hist(frames[i][:, :, color])
         count_2 = ICV_create_hist(frames[i+1][:, :, color])
-
         # compute intersection of the two histograms
         intersection = ICV_hist_intersection(count_1, count_2)
         intersections.append(intersection)
