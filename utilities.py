@@ -277,7 +277,7 @@ def ICV_to_grayscale(img):
 
 
 
-# QUESTION 3 FUNCTIONS
+##################################### QUESTION 3 FUNCTIONS
 
 # get frames of a video sequence
 def ICV_get_frames(path, rbg):
@@ -465,3 +465,158 @@ def ICV_play_video(frames):
             break
     cv2.destroyAllWindows()
     pass
+
+
+########################################### QUESTION 4
+
+
+# split image into feature_descriptors
+def ICV_to_windows(img, size):
+    window_size = size
+    x, y = img.shape[0], img.shape[1]
+
+    windows = []
+
+    for i in range(0, x,  window_size):
+        for j in range(0, y, window_size):
+            window = img[i:i+window_size, j:j+window_size]
+            windows.append(window)
+    return windows
+
+
+# apply local binary pattern
+def ICV_apply_lbp(img):
+    x, y = img.shape[0], img.shape[1]
+    new_img = np.zeros((x, y, 1), dtype=np.uint8)
+
+    for i in range(1, x-1):
+        for j in range(1, y-1):
+
+            # Compare center pixel to neighborhood
+            center = img[i, j].astype(int)
+            nw = 0 if center > img[i-1, j-1] else 1
+            n = 0 if center > img[i-1, j] else 1
+            ne = 0 if center > img[i-1, j+1] else 1
+            e = 0 if center > img[i, j+1] else 1
+            se = 0 if center > img[i+1, j+1] else 1
+            s = 0 if center > img[i+1, j] else 1
+            sw = 0 if center > img[i+1, j-1] else 1
+            w = 0 if center > img[i, j-1] else 1
+
+            # Bit code of the neighbors
+            binary_string = [ne, e, se, s, sw, w, nw, n]
+            decimal = 0
+
+            # Convert to decimal
+            for k, bit in enumerate(binary_string):
+                decimal += bit*(2**k)
+
+            new_img[i, j] = decimal
+    return new_img
+
+def ICV_get_fd(img, window_size):
+    img = ICV_to_grayscale(img)
+    
+    windows = ICV_to_windows(img, window_size)
+
+    feature_descriptors = []
+    lbp_windows = []
+
+    for window in windows:
+        new_window = ICV_add_border(window)
+        lbp = ICV_apply_lbp(new_window)
+        lbp_windows.append(lbp)
+        histogram = ICV_create_hist(lbp[:, :, 0])
+       
+        feature_descriptors.append(histogram)
+    return feature_descriptors, lbp_windows
+
+def ICV_get_gd(feature_descriptors):
+    feature_descriptors = np.array(feature_descriptors)
+    for i, fd in enumerate(feature_descriptors):
+        if i==0:
+            gd = fd
+        else:
+            gd = np.concatenate((gd, fd), axis=None)
+    return np.array(gd)
+
+
+########################################## QUESTION 5
+
+# 5C
+def ICV_get_background(frames):
+    frames = np.array(frames)
+    x, y, z = frames.shape[1], frames.shape[2], frames.shape[3]
+
+    avg = np.zeros((x, y, z), dtype=np.uint8)
+    
+    for i in range(x):
+        for j in range(y):
+            avg[i, j] = np.mean(frames[:, i, j]) if z==1 else np.mean(frames[:, i, j, :])
+    return avg
+
+
+# 5A
+def ICV_compute_segmentation(frames, reference_frame):
+    frames = np.array(frames)
+    new_frames = np.abs(frames.astype('int16') - reference_frame.astype('int16'))
+    new_frames = new_frames.astype('uint8')
+    return new_frames
+
+# 5B
+def ICV_segment_previous_frame(frames):
+    frames = np.array(frames)
+
+    new_frames = []
+    for i, frame in enumerate(frames):
+        if i==0:
+            new_frames.append(frame)
+            continue
+        new_frame = np.abs(frame.astype('int16') - frames[i-1].astype('int16'))
+        new_frames.append(new_frame)
+    new_frames = np.array(new_frames, dtype=np.uint8)
+    return new_frames
+
+def ICV_threshold_classification(frames, threshold):
+    frames = np.array(frames, dtype=np.uint8)
+    frames[frames < threshold] = 0
+    frames[frames >= threshold] = 255
+    return frames
+
+# 5D
+def ICV_fill_blobs(img):
+    new_img = img.copy()
+
+    white_indices = np.argwhere(img[:, :, 0]==255)
+    x_indices = white_indices[:, 0]
+    y_indices = white_indices[:, 1]
+
+    for x, y in zip(x_indices, y_indices):
+        if x < img.shape[0]-2 and y < img.shape[1]-2:
+            if img[x, y+1] == 0:
+                new_img[x, y+1] = 255
+            if img[x, y-1] == 0:
+                new_img[x, y-1] = 255
+            if img[x+1, y] == 0:
+                new_img[x+1, y] = 255
+            if img[x+1, y+1] == 0:
+                new_img[x+1, y+1] = 255
+            if img[x+1, y-1] == 0:
+                new_img[x+1, y-1] = 255
+            if img[x-1, y] == 1:
+                new_img[x-1, y] = 255
+            if img[x-1, y+1] == 0:
+                new_img[x-1, y+1] = 255
+            if img[x-1, y-1] == 0:
+                new_img[x-1, y-1] = 255
+    return new_img
+# COMPUTATIONAL IMPRVOEMET WITH LOOPING ONLY WHITE INSTEAD OF ALL PIXELS
+
+def ICV_interpolate_frames(frames, interpolate_level):
+    interpolated_frames = []
+    for frame in frames:
+        interpolated = frame.copy()
+        for i in range(interpolate_level):
+            interpolated = ICV_fill_blobs(interpolated)
+        interpolated_frames.append(interpolated)
+    return interpolated_frames
