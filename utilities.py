@@ -472,6 +472,10 @@ def ICV_play_video(frames):
 
 # split image into feature_descriptors
 def ICV_to_windows(img, size):
+    """
+        :params img     :   image array
+        :params size    :   scalar value for splitting the image, e.g. size=3 means 3x3 window
+    """
     window_size = size
     x, y = img.shape[0], img.shape[1]
 
@@ -486,9 +490,15 @@ def ICV_to_windows(img, size):
 
 # apply local binary pattern
 def ICV_apply_lbp(img):
+    """
+        :params img     :   image array
+    """ 
+
     x, y = img.shape[0], img.shape[1]
+
     new_img = np.zeros((x, y, 1), dtype=np.uint8)
 
+    # iterate through the image excluding edge pixels
     for i in range(1, x-1):
         for j in range(1, y-1):
 
@@ -503,7 +513,7 @@ def ICV_apply_lbp(img):
             sw = 0 if center > img[i+1, j-1] else 1
             w = 0 if center > img[i, j-1] else 1
 
-            # Bit code of the neighbors
+            # Binary string code of the neighbors
             binary_string = [ne, e, se, s, sw, w, nw, n]
             decimal = 0
 
@@ -514,25 +524,51 @@ def ICV_apply_lbp(img):
             new_img[i, j] = decimal
     return new_img
 
+# 4A
+# compute feature descriptors for the given window sizes
 def ICV_get_fd(img, window_size):
+    """
+        :params img     :   image array
+        :window_size    :   scalar value for splitting the image, e.g. size=3 means 3x3 window
+    """
+
+    # convert to grayscale
     img = ICV_to_grayscale(img)
     
+    # split into non-overlapping windows
     windows = ICV_to_windows(img, window_size)
 
     feature_descriptors = []
     lbp_windows = []
 
+    # apply local binary pattern operator on all windows
     for window in windows:
+
+        # add border (mirroring edge pixels)
         new_window = ICV_add_border(window)
+
+        # apply LBP
         lbp = ICV_apply_lbp(new_window)
+        
+        # remove border
+        lbp = ICV_remove_border(lbp)
         lbp_windows.append(lbp)
+
+        # create histogram
         histogram = ICV_create_hist(lbp[:, :, 0])
-       
         feature_descriptors.append(histogram)
     return feature_descriptors, lbp_windows
 
+
+# 4B
+# compute global descriptor
 def ICV_get_gd(feature_descriptors):
+    """
+        :params feature_descriptors     :   list of numpy arrays (feature descriptors)
+    """
     feature_descriptors = np.array(feature_descriptors)
+
+    # concatenate feature descriptors 
     for i, fd in enumerate(feature_descriptors):
         if i==0:
             gd = fd
@@ -543,48 +579,78 @@ def ICV_get_gd(feature_descriptors):
 
 ########################################## QUESTION 5
 
+# 5A
+# compute frame differencing between two frames
+def ICV_compute_segmentation(frames, reference_frame):
+    """
+        :params frames          :   list of images
+        :parms  reference_frame :   reference frame for frame differencing
+    """
+    frames = np.array(frames)
+
+    # compute difference
+    new_frames = np.abs(frames.astype('int16') - reference_frame.astype('int16'))
+    new_frames = new_frames.astype('uint8')
+    return new_frames
+
+
+# classify background and objects based on threshold
+def ICV_threshold_classification(frames, threshold):
+    """ 
+        :params frames      :   list of images
+        :params threshold   :   scalar for determining threshold
+    """
+    frames = np.array(frames, dtype=np.uint8)
+    frames[frames < threshold] = 0
+    frames[frames >= threshold] = 255
+    return frames
+
+
+# 5B
+# compute frame differencing from previous frame
+def ICV_segment_previous_frame(frames):
+    """
+        :params frames          :   list of images
+    """
+    frames = np.array(frames)
+
+    new_frames = []
+    for i, frame in enumerate(frames):
+
+        # skip first frame, since there's no previous frame for frame differencing
+        if i==0:
+            new_frames.append(frame)
+            continue
+
+        # compute frame difference
+        new_frame = np.abs(frame.astype('int16') - frames[i-1].astype('int16'))
+        new_frames.append(new_frame)
+    new_frames = np.array(new_frames, dtype=np.uint8)
+    return new_frames
+
+
+
+
 # 5C
+# compute the background frame
 def ICV_get_background(frames):
     frames = np.array(frames)
     x, y, z = frames.shape[1], frames.shape[2], frames.shape[3]
 
     avg = np.zeros((x, y, z), dtype=np.uint8)
     
+    # compute the average of all pixels in a given coordinate for all frames
     for i in range(x):
         for j in range(y):
             avg[i, j] = np.mean(frames[:, i, j]) if z==1 else np.mean(frames[:, i, j, :])
     return avg
 
-
-# 5A
-def ICV_compute_segmentation(frames, reference_frame):
-    frames = np.array(frames)
-    new_frames = np.abs(frames.astype('int16') - reference_frame.astype('int16'))
-    new_frames = new_frames.astype('uint8')
-    return new_frames
-
-# 5B
-def ICV_segment_previous_frame(frames):
-    frames = np.array(frames)
-
-    new_frames = []
-    for i, frame in enumerate(frames):
-        if i==0:
-            new_frames.append(frame)
-            continue
-        new_frame = np.abs(frame.astype('int16') - frames[i-1].astype('int16'))
-        new_frames.append(new_frame)
-    new_frames = np.array(new_frames, dtype=np.uint8)
-    return new_frames
-
-def ICV_threshold_classification(frames, threshold):
-    frames = np.array(frames, dtype=np.uint8)
-    frames[frames < threshold] = 0
-    frames[frames >= threshold] = 255
-    return frames
-
 # 5D
+# interpolate black pixels if neighboring to a white pixel
 def ICV_fill_blobs(img):
+    """
+        :params img     :   image array
+    """
     new_img = img.copy()
 
     white_indices = np.argwhere(img[:, :, 0]==255)
@@ -610,9 +676,14 @@ def ICV_fill_blobs(img):
             if img[x-1, y-1] == 0:
                 new_img[x-1, y-1] = 255
     return new_img
-# COMPUTATIONAL IMPRVOEMET WITH LOOPING ONLY WHITE INSTEAD OF ALL PIXELS
 
+
+# iteratively call ICV_fill_blobs() to interpolate
 def ICV_interpolate_frames(frames, interpolate_level):
+    """
+        :params frames              :   list of images
+        :params interpolate_level   :   number of times to apply interpolation on black pixels
+    """
     interpolated_frames = []
     for frame in frames:
         interpolated = frame.copy()
